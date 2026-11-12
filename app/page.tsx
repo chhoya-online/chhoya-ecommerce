@@ -10,7 +10,7 @@ type Product = {
   price: number | string;
   stock: number;
   image_url: string | null;
-  category: { name: string } | { name: string }[] | null;
+  categories: { name: string }[] | null;
 };
 
 type CartItem = { product: Product; quantity: number };
@@ -116,7 +116,7 @@ export default function Home() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 18 }}>
             {products.map((product) => {
-              const category = Array.isArray(product.category) ? product.category[0]?.name : product.category?.name;
+              const category = product.categories?.[0]?.name;
               return (
                 <article key={product.id} style={{ border: "1px solid #f1e2e7", borderRadius: 18, overflow: "hidden", background: "#fff", boxShadow: "0 5px 20px rgba(56,37,31,.05)" }}>
                   <div style={{ height: 220, background: "#fff3f7", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
