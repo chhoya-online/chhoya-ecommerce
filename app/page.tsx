@@ -17,6 +17,7 @@ type CartItem = { product: Product; quantity: number };
 
 const pink = "#b94f78";
 const brown = "#38251f";
+const fieldStyle: React.CSSProperties = { width: "100%", boxSizing: "border-box", border: "1px solid #e8dce0", borderRadius: 10, padding: "13px 14px", fontSize: 15, color: brown, background: "#fff" };
 
 function getSupabase(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -31,6 +32,10 @@ export default function Home() {
   const [loadError, setLoadError] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [orderMessage, setOrderMessage] = useState("");
+  const [customer, setCustomer] = useState({ fullName: "", phone: "", address: "", city: "", state: "", pincode: "", website: "" });
   const supabase = useMemo(() => getSupabase(), []);
 
   useEffect(() => {
@@ -81,6 +86,29 @@ export default function Home() {
         ? { ...item, quantity: item.quantity + delta }
         : item)
       .filter((item) => item.quantity > 0));
+  }
+
+  async function placeCodOrder(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!cart.length || placingOrder) return;
+    setPlacingOrder(true);
+    setOrderMessage("");
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...customer, items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity })) }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "অর্ডার করা যায়নি।");
+      setOrderMessage(`আপনার অর্ডার সফল হয়েছে! Order ID: ${result.orderId} • মোট ₹${Number(result.total).toFixed(2)}`);
+      setCart([]);
+      setCheckoutOpen(false);
+    } catch (error) {
+      setOrderMessage(error instanceof Error ? error.message : "আবার চেষ্টা করুন।");
+    } finally {
+      setPlacingOrder(false);
+    }
   }
 
   return (
@@ -162,7 +190,24 @@ export default function Home() {
                   </div>
                 ))}
                 <h3 style={{ textAlign: "right" }}>Total: ₹{cartTotal.toFixed(2)}</h3>
-                <p style={{ color: "#78665f", fontSize: 13 }}>Checkout ও payment পরবর্তী ধাপে যুক্ত করা হবে।</p>
+                {!checkoutOpen ? (
+                  <button onClick={() => { setOrderMessage(""); setCheckoutOpen(true); }} style={{ width: "100%", marginTop: 12, border: 0, borderRadius: 26, background: pink, color: "#fff", padding: 15, fontWeight: 700, fontSize: 16, cursor: "pointer" }}>Proceed to Checkout</button>
+                ) : (
+                  <form onSubmit={placeCodOrder} style={{ display: "grid", gap: 12, marginTop: 20 }}>
+                    <h3 style={{ margin: "4px 0" }}>Delivery Details</h3>
+                    <input required minLength={2} maxLength={100} placeholder="আপনার পুরো নাম" value={customer.fullName} onChange={(e) => setCustomer({ ...customer, fullName: e.target.value })} style={fieldStyle} />
+                    <input required type="tel" inputMode="numeric" pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit mobile number" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value.replace(/\\D/g, "").slice(0, 10) })} style={fieldStyle} />
+                    <textarea required minLength={8} maxLength={500} placeholder="বাড়ি/রাস্তা/গ্রাম, সম্পূর্ণ ঠিকানা" value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} style={{ ...fieldStyle, minHeight: 84, resize: "vertical" }} />
+                    <input required minLength={2} maxLength={80} placeholder="City / Town" value={customer.city} onChange={(e) => setCustomer({ ...customer, city: e.target.value })} style={fieldStyle} />
+                    <input required minLength={2} maxLength={80} placeholder="State" value={customer.state} onChange={(e) => setCustomer({ ...customer, state: e.target.value })} style={fieldStyle} />
+                    <input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="6-digit PIN code" value={customer.pincode} onChange={(e) => setCustomer({ ...customer, pincode: e.target.value.replace(/\\D/g, "").slice(0, 6) })} style={fieldStyle} />
+                    <input tabIndex={-1} autoComplete="off" aria-hidden="true" value={customer.website} onChange={(e) => setCustomer({ ...customer, website: e.target.value })} style={{ display: "none" }} />
+                    <div style={{ background: "#fff7f9", borderRadius: 12, padding: 14 }}><strong>Payment Method: Cash on Delivery</strong><p style={{ margin: "6px 0 0", color: "#78665f", fontSize: 13 }}>পণ্য হাতে পেয়ে টাকা দেবেন।</p></div>
+                    <button type="submit" disabled={placingOrder} style={{ border: 0, borderRadius: 26, background: placingOrder ? "#aaa" : pink, color: "#fff", padding: 15, fontWeight: 700, fontSize: 16, cursor: placingOrder ? "wait" : "pointer" }}>{placingOrder ? "অর্ডার হচ্ছে…" : `Confirm COD Order • ₹${cartTotal.toFixed(2)}`}</button>
+                    <button type="button" onClick={() => setCheckoutOpen(false)} style={{ border: "1px solid #e8dce0", borderRadius: 24, background: "#fff", color: brown, padding: 12, cursor: "pointer" }}>Back to Cart</button>
+                  </form>
+                )}
+                {orderMessage && <p role="status" style={{ background: "#fff7f9", padding: 12, borderRadius: 12, color: brown, lineHeight: 1.5 }}>{orderMessage}</p>}
               </>
             )}
           </div>
