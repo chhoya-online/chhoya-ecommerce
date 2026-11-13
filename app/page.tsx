@@ -14,6 +14,7 @@ type Product = {
 };
 
 type CartItem = { product: Product; quantity: number };
+type OrderConfirmation = { orderId: string | number; total: number };
 
 const pink = "#b94f78";
 const brown = "#38251f";
@@ -35,6 +36,7 @@ export default function Home() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderMessage, setOrderMessage] = useState("");
+  const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmation | null>(null);
   const [customer, setCustomer] = useState({ fullName: "", phone: "", address: "", city: "", state: "", pincode: "", website: "" });
   const supabase = useMemo(() => getSupabase(), []);
 
@@ -68,6 +70,8 @@ export default function Home() {
   const cartTotal = cart.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0);
 
   function addToCart(product: Product) {
+    setOrderConfirmation(null);
+    setOrderMessage("");
     setCart((current) => {
       const existing = current.find((item) => item.product.id === product.id);
       if (existing) {
@@ -101,7 +105,7 @@ export default function Home() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "অর্ডার করা যায়নি।");
-      setOrderMessage(`আপনার অর্ডার সফল হয়েছে! Order ID: ${result.orderId} • মোট ₹${Number(result.total).toFixed(2)}`);
+      setOrderConfirmation({ orderId: result.orderId, total: Number(result.total) });
       setCart([]);
       setCheckoutOpen(false);
     } catch (error) {
@@ -174,10 +178,24 @@ export default function Home() {
         <div role="dialog" aria-modal="true" aria-label="Shopping cart" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", zIndex: 30, display: "flex", justifyContent: "flex-end" }} onClick={() => setCartOpen(false)}>
           <div onClick={(event) => event.stopPropagation()} style={{ width: "min(100%, 420px)", height: "100%", background: "#fff", padding: 22, overflowY: "auto", boxSizing: "border-box" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0 }}>Your Cart ({cartCount})</h2>
+              <h2 style={{ margin: 0 }}>{orderConfirmation ? "Order Confirmed" : `Your Cart (${cartCount})`}</h2>
               <button onClick={() => setCartOpen(false)} aria-label="Close cart" style={{ border: 0, background: "transparent", fontSize: 26, cursor: "pointer" }}>×</button>
             </div>
-            {cart.length === 0 ? <p style={{ color: "#78665f", padding: "30px 0" }}>আপনার Cart এখন খালি।</p> : (
+            {orderConfirmation ? (
+              <div role="status" style={{ marginTop: 28, padding: 22, borderRadius: 18, background: "#fff7f9", border: "1px solid #f1d7e1", textAlign: "center" }}>
+                <div style={{ fontSize: 48, color: pink }}>✓</div>
+                <h3 style={{ margin: "8px 0", color: pink }}>ধন্যবাদ! আপনার অর্ডার সফল হয়েছে।</h3>
+                <p style={{ color: "#78665f", lineHeight: 1.6 }}>আমরা আপনার অর্ডার পেয়েছি। অর্ডারটি প্রসেস করার জন্য প্রস্তুত করা হচ্ছে।</p>
+                <div style={{ background: "#fff", borderRadius: 12, padding: 16, margin: "18px 0", textAlign: "left" }}>
+                  <p style={{ margin: "0 0 10px", color: "#78665f" }}>Order ID</p>
+                  <strong style={{ fontSize: 24, color: brown }}>#{orderConfirmation.orderId}</strong>
+                  <p style={{ margin: "14px 0 0", color: "#78665f" }}>মোট অর্ডার মূল্য</p>
+                  <strong style={{ fontSize: 20 }}>₹{orderConfirmation.total.toFixed(2)}</strong>
+                  <p style={{ margin: "14px 0 0", color: "#78665f" }}>Payment: Cash on Delivery</p>
+                </div>
+                <button onClick={() => setCartOpen(false)} style={{ width: "100%", border: 0, borderRadius: 26, background: pink, color: "#fff", padding: 15, fontWeight: 700, cursor: "pointer" }}>Continue Shopping</button>
+              </div>
+            ) : cart.length === 0 ? <p style={{ color: "#78665f", padding: "30px 0" }}>আপনার Cart এখন খালি।</p> : (
               <>
                 {cart.map((item) => (
                   <div key={item.product.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, borderBottom: "1px solid #f1e2e7", padding: "16px 0" }}>
@@ -207,7 +225,7 @@ export default function Home() {
                     <button type="button" onClick={() => setCheckoutOpen(false)} style={{ border: "1px solid #e8dce0", borderRadius: 24, background: "#fff", color: brown, padding: 12, cursor: "pointer" }}>Back to Cart</button>
                   </form>
                 )}
-                {orderMessage && <p role="status" style={{ background: "#fff7f9", padding: 12, borderRadius: 12, color: brown, lineHeight: 1.5 }}>{orderMessage}</p>}
+                {orderMessage && <p role="alert" style={{ background: "#fff7f9", padding: 12, borderRadius: 12, color: brown, lineHeight: 1.5 }}>{orderMessage}</p>}
               </>
             )}
           </div>
