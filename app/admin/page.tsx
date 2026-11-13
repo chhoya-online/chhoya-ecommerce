@@ -80,7 +80,7 @@ export default function AdminPage() {
     setMessage("");
     const { error } = await supabase.auth.signInWithOtp({
       email: ADMIN_EMAIL,
-      options: { emailRedirectTo: window.location.origin + "/admin" },
+      options: { emailRedirectTo: "https://chhoya.in/admin" },
     });
     setBusy(false);
     setMessage(error ? error.message : "আপনার Gmail-এ লগইন লিঙ্ক পাঠানো হয়েছে। Inbox বা Spam ফোল্ডার দেখুন।");
